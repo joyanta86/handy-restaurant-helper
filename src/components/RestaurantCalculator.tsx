@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Clock, DollarSign, CalendarDays, Euro } from "lucide-react";
+import { Clock, Euro, CalendarDays } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +150,7 @@ export const RestaurantCalculator = () => {
                 Today's Hours: {calculateHoursWorked(timeIn, timeOut)}
               </div>
               <div className="text-lg font-semibold mb-2">
-                Today's Pay: ${(calculateHoursWorked(timeIn, timeOut) * hourlyRate).toFixed(2)}
+                Today's Pay: €{(calculateHoursWorked(timeIn, timeOut) * hourlyRate).toFixed(2)}
               </div>
               <Button 
                 onClick={handleAddDay}
@@ -179,7 +178,7 @@ export const RestaurantCalculator = () => {
                       </div>
                       <div className="text-right">
                         <div>{workDay.hoursWorked} hours</div>
-                        <div className="text-violet-600">${workDay.earnings.toFixed(2)}</div>
+                        <div className="text-violet-600">€{workDay.earnings.toFixed(2)}</div>
                       </div>
                     </div>
                   ))}
@@ -190,7 +189,7 @@ export const RestaurantCalculator = () => {
                       Monthly Hours: {totalHours.toFixed(2)}
                     </div>
                     <div className="text-lg font-semibold text-violet-600">
-                      Monthly Total: ${totalEarnings.toFixed(2)}
+                      Monthly Total: €{totalEarnings.toFixed(2)}
                     </div>
                   </div>
                   <Button 
