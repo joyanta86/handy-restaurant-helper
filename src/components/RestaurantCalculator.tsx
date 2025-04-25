@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Clock, DollarSign, CalendarDays } from "lucide-react";
+import { Clock, DollarSign, CalendarDays, Euro } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ type WorkDay = {
 };
 
 export const RestaurantCalculator = () => {
-  const [hourlyRate, setHourlyRate] = useState<number>(15);
+  const [hourlyRate, setHourlyRate] = useState<number>(15.50);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [timeIn, setTimeIn] = useState<string>("");
   const [timeOut, setTimeOut] = useState<string>("");
@@ -75,12 +75,13 @@ export const RestaurantCalculator = () => {
         <Card className="p-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+              <Label htmlFor="hourlyRate">Hourly Rate</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
+                <Euro className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
                 <Input
                   id="hourlyRate"
                   type="number"
+                  step="0.01"
                   value={hourlyRate}
                   onChange={(e) => setHourlyRate(Number(e.target.value))}
                   className="pl-10"
