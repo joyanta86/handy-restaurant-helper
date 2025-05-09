@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Clock, Euro, CalendarDays } from "lucide-react";
+import { Clock, Euro, CalendarDays, Save } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/sonner";
 
 type WorkDay = {
   date: Date;
@@ -23,6 +25,35 @@ export const RestaurantCalculator = () => {
   const [timeIn, setTimeIn] = useState<string>("");
   const [timeOut, setTimeOut] = useState<string>("");
   const [monthlyWorkDays, setMonthlyWorkDays] = useState<WorkDay[]>([]);
+
+  // Load saved data from localStorage on component mount
+  useEffect(() => {
+    const savedHourlyRate = localStorage.getItem("hourlyRate");
+    const savedWorkDays = localStorage.getItem("workDays");
+    
+    if (savedHourlyRate) {
+      setHourlyRate(Number(savedHourlyRate));
+    }
+    
+    if (savedWorkDays) {
+      try {
+        const parsedWorkDays = JSON.parse(savedWorkDays).map((day: any) => ({
+          ...day,
+          date: new Date(day.date)
+        }));
+        setMonthlyWorkDays(parsedWorkDays);
+      } catch (error) {
+        console.error("Error parsing saved work days", error);
+      }
+    }
+  }, []);
+
+  // Save data to localStorage
+  const saveData = () => {
+    localStorage.setItem("hourlyRate", hourlyRate.toString());
+    localStorage.setItem("workDays", JSON.stringify(monthlyWorkDays));
+    toast.success("Data saved successfully");
+  };
 
   const calculateHoursWorked = (timeIn: string, timeOut: string): number => {
     if (!timeIn || !timeOut) return 0;
@@ -46,9 +77,17 @@ export const RestaurantCalculator = () => {
         earnings
       };
       
-      setMonthlyWorkDays([...monthlyWorkDays, newWorkDay]);
+      const updatedWorkDays = [...monthlyWorkDays, newWorkDay];
+      setMonthlyWorkDays(updatedWorkDays);
+      
+      // Auto-save when adding a new day
+      localStorage.setItem("workDays", JSON.stringify(updatedWorkDays));
+      
       setTimeIn("");
       setTimeOut("");
+      toast.success("Workday added successfully");
+    } else {
+      toast.error("Please enter valid time values");
     }
   };
 
@@ -60,6 +99,13 @@ export const RestaurantCalculator = () => {
 
   const handleClearMonth = () => {
     setMonthlyWorkDays([]);
+    localStorage.removeItem("workDays");
+    toast.info("Monthly data cleared");
+  };
+
+  const handleHourlyRateChange = (value: number) => {
+    setHourlyRate(value);
+    localStorage.setItem("hourlyRate", value.toString());
   };
 
   const { totalHours, totalEarnings } = calculateMonthlyTotals();
@@ -82,7 +128,7 @@ export const RestaurantCalculator = () => {
                   type="number"
                   step="0.01"
                   value={hourlyRate}
-                  onChange={(e) => setHourlyRate(Number(e.target.value))}
+                  onChange={(e) => handleHourlyRateChange(Number(e.target.value))}
                   className="pl-10"
                 />
               </div>
@@ -184,7 +230,7 @@ export const RestaurantCalculator = () => {
                   ))}
                 </div>
                 <div className="pt-4 border-t">
-                  <div className="space-y-2">
+                  <div className="space-y-2 mb-4">
                     <div className="text-lg font-semibold">
                       Monthly Hours: {totalHours.toFixed(2)}
                     </div>
@@ -192,13 +238,23 @@ export const RestaurantCalculator = () => {
                       Monthly Total: €{totalEarnings.toFixed(2)}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline"
-                    onClick={handleClearMonth}
-                    className="w-full mt-4"
-                  >
-                    Clear Monthly Data
-                  </Button>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button 
+                      variant="outline"
+                      onClick={handleClearMonth}
+                      className="w-full"
+                    >
+                      Clear Monthly Data
+                    </Button>
+                    <Button 
+                      onClick={saveData}
+                      className="w-full"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Data
+                    </Button>
+                  </div>
                 </div>
               </>
             ) : (
