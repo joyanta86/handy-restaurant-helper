@@ -1,15 +1,39 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Clock, Euro, CalendarDays, Save } from "lucide-react";
+import { 
+  Clock, 
+  Euro, 
+  CalendarDays, 
+  Save, 
+  Download, 
+  Upload, 
+  FileSpreadsheet 
+} from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
+import { 
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type WorkDay = {
   date: Date;
@@ -25,6 +49,7 @@ export const RestaurantCalculator = () => {
   const [timeIn, setTimeIn] = useState<string>("");
   const [timeOut, setTimeOut] = useState<string>("");
   const [monthlyWorkDays, setMonthlyWorkDays] = useState<WorkDay[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load saved data from localStorage on component mount
   useEffect(() => {
@@ -106,6 +131,112 @@ export const RestaurantCalculator = () => {
   const handleHourlyRateChange = (value: number) => {
     setHourlyRate(value);
     localStorage.setItem("hourlyRate", value.toString());
+  };
+
+  // Download data as CSV file
+  const handleDownloadCSV = () => {
+    if (monthlyWorkDays.length === 0) {
+      toast.error("No data to download");
+      return;
+    }
+
+    // Create CSV content
+    const headers = ["Date", "Time In", "Time Out", "Hours Worked", "Earnings (€)"];
+    const rows = monthlyWorkDays.map(day => [
+      format(day.date, "yyyy-MM-dd"),
+      day.timeIn,
+      day.timeOut,
+      day.hoursWorked.toFixed(2),
+      day.earnings.toFixed(2)
+    ]);
+    
+    // Add totals row
+    const { totalHours, totalEarnings } = calculateMonthlyTotals();
+    rows.push(["TOTAL", "", "", totalHours.toFixed(2), totalEarnings.toFixed(2)]);
+    
+    // Create CSV string
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `work-schedule-${format(new Date(), "yyyy-MM")}.csv`;
+    link.click();
+    
+    // Clean up
+    URL.revokeObjectURL(url);
+    toast.success("Download successful");
+  };
+
+  // Trigger file input click
+  const handleUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if it's a CSV file
+    if (!file.name.endsWith('.csv')) {
+      toast.error("Please upload a CSV file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const csvData = event.target?.result as string;
+        const rows = csvData.split('\n');
+        
+        // Skip header row and last row (totals)
+        const dataRows = rows.slice(1, rows.length - 1);
+        
+        const parsedWorkDays: WorkDay[] = dataRows
+          .filter(row => row.trim() !== '') // Filter out empty rows
+          .map(row => {
+            const [dateStr, timeIn, timeOut, hoursStr, earningsStr] = row.split(',');
+            
+            return {
+              date: new Date(dateStr),
+              timeIn,
+              timeOut,
+              hoursWorked: parseFloat(hoursStr),
+              earnings: parseFloat(earningsStr)
+            };
+          });
+
+        if (parsedWorkDays.length > 0) {
+          setMonthlyWorkDays(parsedWorkDays);
+          localStorage.setItem("workDays", JSON.stringify(parsedWorkDays));
+          toast.success(`Imported ${parsedWorkDays.length} work days`);
+        } else {
+          toast.error("No valid data found in the file");
+        }
+      } catch (error) {
+        console.error("Error parsing CSV:", error);
+        toast.error("Failed to parse the uploaded file");
+      }
+    };
+
+    reader.onerror = () => {
+      toast.error("Error reading the file");
+    };
+
+    reader.readAsText(file);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const { totalHours, totalEarnings } = calculateMonthlyTotals();
@@ -239,7 +370,7 @@ export const RestaurantCalculator = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <Button 
                       variant="outline"
                       onClick={handleClearMonth}
@@ -254,6 +385,88 @@ export const RestaurantCalculator = () => {
                       <Save className="mr-2 h-4 w-4" />
                       Save Data
                     </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button
+                      onClick={handleDownloadCSV}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download CSV
+                    </Button>
+                    
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button 
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload CSV
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent>
+                        <SheetHeader>
+                          <SheetTitle>Upload Work Schedule</SheetTitle>
+                          <SheetDescription>
+                            Import your work schedule from a CSV file. The file should have the same format as the downloaded CSV.
+                          </SheetDescription>
+                        </SheetHeader>
+                        <div className="py-6">
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50" onClick={handleUploadClick}>
+                            <FileSpreadsheet className="h-12 w-12 mx-auto text-gray-400" />
+                            <p className="mt-2 text-sm text-gray-500">
+                              Click to select a CSV file or drag and drop it here
+                            </p>
+                            <p className="mt-1 text-xs text-gray-400">
+                              File should be a CSV with columns: Date, Time In, Time Out, Hours Worked, Earnings
+                            </p>
+                          </div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                          
+                          <div className="mt-4">
+                            <h3 className="text-sm font-medium mb-2">CSV Format Example:</h3>
+                            <div className="bg-gray-50 p-2 rounded text-xs overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-[100px]">Date</TableHead>
+                                    <TableHead>Time In</TableHead>
+                                    <TableHead>Time Out</TableHead>
+                                    <TableHead>Hours</TableHead>
+                                    <TableHead>Earnings (€)</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  <TableRow>
+                                    <TableCell>2025-05-01</TableCell>
+                                    <TableCell>09:00</TableCell>
+                                    <TableCell>17:00</TableCell>
+                                    <TableCell>8.00</TableCell>
+                                    <TableCell>124.00</TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell>2025-05-02</TableCell>
+                                    <TableCell>10:00</TableCell>
+                                    <TableCell>18:30</TableCell>
+                                    <TableCell>8.50</TableCell>
+                                    <TableCell>131.75</TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
                   </div>
                 </div>
               </>
